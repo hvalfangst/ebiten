@@ -19,28 +19,24 @@ import (
 	"time"
 )
 
-var grassImage *ebiten.Image
-var playerImage *ebiten.Image
-var bambooImage *ebiten.Image
-var fireImage *ebiten.Image
-
-var roofImage *ebiten.Image
-var doorImage *ebiten.Image
-
+var grassImage, playerImage, bambooImage, fireImage, roofImage *ebiten.Image
+var doorImage, northImage, southImage, westImage, eastImage *ebiten.Image
 var waterImages []*ebiten.Image
-
+var alarmSound beep.StreamSeekCloser
 var game *Game
 
-var fireSound beep.StreamSeekCloser
-
 const (
-	TileTypeGrass    = "G"
-	TileTypeBamboo   = "B"
-	TileTypeFire     = "F"
-	TileTypeWater    = "W"
-	TileTypeRoof     = "R"
-	TileTypeDoor     = "D"
-	FireTileDuration = 5 * time.Second
+	TileTypeGrass  = "G"
+	TileTypeBamboo = "B"
+	TileTypeFire   = "F"
+	TileTypeWater  = "W"
+	TileTypeRoof   = "R"
+	TileTypeDoor   = "D"
+
+	TileTypeNorth = "NORTH"
+	TileTypeWest  = "WEST"
+	TileTypeEast  = "EAST"
+	TileTypeSouth = "SOUTH"
 )
 
 var seaColored bool
@@ -68,30 +64,44 @@ func loadTilesFromFile(filename string) ([][]string, error) {
 	return tiles, nil
 }
 
-func (g *Game) LoadTiles(filename string) error {
-	tiles, err := loadTilesFromFile(filename)
+func (g *Game) LoadTiles(filePath string) error {
+	fmt.Printf("\n - - - Loading Tiles - - - \n\n")
+
+	tiles, err := loadTilesFromFile(filePath)
 	if err != nil {
 		return err
 	}
 
-	g.tiles = tiles
+	var fileName = strings.Split(filePath, "/")[2]
+	var zoneName = strings.Split(fileName, ".")[0]
+
+	// Update game state with new tiles and name for zone
+	g.currentZone = zoneName
+	g.currentTiles = tiles
+
+	fmt.Printf("\n - - - Finished Loaded Tiles: for Zone [%s] - - - \n\n", g.currentZone)
 
 	return nil
 }
 
 func init() {
 	var err error
-	grassImage, _, err = ebitenutil.NewImageFromFile("grass_2.png")
-	playerImage, _, err = ebitenutil.NewImageFromFile("player.png")
-	bambooImage, _, err = ebitenutil.NewImageFromFile("bamboo.png")
+	grassImage, _, err = ebitenutil.NewImageFromFile("assets/models/grass_2.png")
+	playerImage, _, err = ebitenutil.NewImageFromFile("assets/models/rattle_front.png")
+	bambooImage, _, err = ebitenutil.NewImageFromFile("assets/models/bamboo.png")
 
-	roofImage, _, err = ebitenutil.NewImageFromFile("roof.png")
-	doorImage, _, err = ebitenutil.NewImageFromFile("door.png")
-	fireImage, _, err = ebitenutil.NewImageFromFile("fire.png")
+	roofImage, _, err = ebitenutil.NewImageFromFile("assets/models/roof.png")
+	doorImage, _, err = ebitenutil.NewImageFromFile("assets/models/door.png")
+	fireImage, _, err = ebitenutil.NewImageFromFile("assets/models/fire.png")
 
-	waterImage1, _, err := ebitenutil.NewImageFromFile("water.png")
-	waterImage2, _, err := ebitenutil.NewImageFromFile("water_2.png")
+	waterImage1, _, err := ebitenutil.NewImageFromFile("assets/models/water.png")
+	waterImage2, _, err := ebitenutil.NewImageFromFile("assets/models/water_2.png")
 	waterImages = []*ebiten.Image{waterImage1, waterImage2}
+
+	northImage, _, err = ebitenutil.NewImageFromFile("assets/models/north.png")
+	southImage, _, err = ebitenutil.NewImageFromFile("assets/models/south.png")
+	eastImage, _, err = ebitenutil.NewImageFromFile("assets/models/east.png")
+	westImage, _, err = ebitenutil.NewImageFromFile("assets/models/west.png")
 
 	if err != nil {
 		log.Fatal(err)
@@ -115,50 +125,48 @@ func (a *Position) Increment(x int, y int) {
 }
 
 const (
-	SCREEN_SIZE       = 500
-	TILE_SIZE         = 25
-	NUM_TILES         = SCREEN_SIZE / TILE_SIZE
-	PLAYER_SIZE       = TILE_SIZE
-	TOTAL_GRASS_TILES = 400
+	SCREEN_SIZE = 500
+	TILE_SIZE   = 25
+	NUM_TILES   = SCREEN_SIZE / TILE_SIZE
 )
 
 type Game struct {
-	tiles           [][]string
+	currentTiles    [][]string
+	currentZone     string
 	currentPos      Position
 	waterImageIndex int
 }
 
 func (g *Game) Update() error {
 	g.HandleKeyPress()
-
 	if g.currentPos.justChanged {
-		if g.currentPos.x <= 200 && g.currentPos.y <= 100 && !seaColored {
-			// Color the sea by changing all the "W" tiles to "F" (fire)
-			for i := range g.tiles {
-				for j := range g.tiles[i] {
-					if g.tiles[i][j] == TileTypeWater {
-						g.tiles[i][j] = TileTypeFire
-					}
-				}
-			}
-			seaColored = true
+		if g.currentZone == "island" {
 
-			err := fireSound.Seek(0)
-			if err != nil {
-				return nil
+			if g.currentPos.x <= 200 && g.currentPos.y <= 100 && !seaColored {
+
+				//// Color the sea by changing all the "W" currentTiles to "F" (fire)
+				//for i := range g.currentTiles {
+				//	for j := range g.currentTiles[i] {
+				//		if g.currentTiles[i][j] == TileTypeWater {
+				//			g.currentTiles[i][j] = TileTypeFire
+				//		}
+				//	}
+				//}
+				//seaColored = true
+				//
+				//err := alarmSound.Seek(0)
+				//if err != nil {
+				//	return nil
+				//}
+				//speaker.Play(alarmSound)
 			}
-			speaker.Play(fireSound)
 		}
-
 	}
-
 	return nil
 }
 
-// ... (previous code)
-
-func loadFireSound() {
-	f, err := os.Open("alarm.wav")
+func loadAlarmSound() {
+	f, err := os.Open("assets/sounds/alarm.wav")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -167,31 +175,40 @@ func loadFireSound() {
 		log.Fatal(err)
 	}
 
-	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
-	fireSound = streamer
+	err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	if err != nil {
+		return
+	}
+	alarmSound = streamer
 }
 
 func (g *Game) HandleKeyPress() {
-	//oldX, oldY := g.currentPos.x, g.currentPos.y
-
 	if ebiten.IsKeyPressed(ebiten.KeyW) {
 		g.currentPos.Increment(0, -1)
+		g.currentTiles[18][18] = TileTypeNorth // Set the tile type to the north image
 	} else if ebiten.IsKeyPressed(ebiten.KeyS) {
 		g.currentPos.Increment(0, 1)
+		g.currentTiles[18][18] = TileTypeSouth // Set the tile type to the south image
 	} else if ebiten.IsKeyPressed(ebiten.KeyA) {
 		g.currentPos.Increment(-1, 0)
+		g.currentTiles[18][18] = TileTypeWest // Set the tile type to the west image
 	} else if ebiten.IsKeyPressed(ebiten.KeyD) {
 		g.currentPos.Increment(1, 0)
+		g.currentTiles[18][18] = TileTypeEast // Set the tile type to the east image
 	}
 
-	//newX, newY := g.currentPos.x, g.currentPos.y
-	//log.Printf("Moved from (%d, %d) to (%d, %d)\n", oldX, oldY, newX, newY)
 	g.currentPos.justChanged = true
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	for i, tileRow := range g.tiles {
-		for j, tileType := range tileRow {
+	for i := 0; i < NUM_TILES; i++ {
+		for j := 0; j < NUM_TILES; j++ {
+			if i >= len(g.currentTiles) || j >= len(g.currentTiles[i]) {
+				continue
+			}
+
+			tileType := g.currentTiles[i][j]
+
 			switch tileType {
 			case TileTypeGrass:
 				op := &ebiten.DrawImageOptions{}
@@ -217,6 +234,24 @@ func (g *Game) Draw(screen *ebiten.Image) {
 				op := &ebiten.DrawImageOptions{}
 				op.GeoM.Translate(float64(i*TILE_SIZE), float64(j*TILE_SIZE))
 				screen.DrawImage(doorImage, op)
+
+			// Add new cases for the north, south, west, and east images
+			case TileTypeNorth:
+				op := &ebiten.DrawImageOptions{}
+				op.GeoM.Translate(float64(i*TILE_SIZE), float64(j*TILE_SIZE))
+				screen.DrawImage(northImage, op)
+			case TileTypeSouth:
+				op := &ebiten.DrawImageOptions{}
+				op.GeoM.Translate(float64(i*TILE_SIZE), float64(j*TILE_SIZE))
+				screen.DrawImage(southImage, op)
+			case TileTypeWest:
+				op := &ebiten.DrawImageOptions{}
+				op.GeoM.Translate(float64(i*TILE_SIZE), float64(j*TILE_SIZE))
+				screen.DrawImage(westImage, op)
+			case TileTypeEast:
+				op := &ebiten.DrawImageOptions{}
+				op.GeoM.Translate(float64(i*TILE_SIZE), float64(j*TILE_SIZE))
+				screen.DrawImage(eastImage, op)
 			}
 
 		}
@@ -225,24 +260,27 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(float64(TILE_SIZE)/float64(playerImage.Bounds().Dx()), float64(TILE_SIZE)/float64(playerImage.Bounds().Dy()))
 	op.GeoM.Translate(float64(g.currentPos.x), float64(g.currentPos.y))
+
 	screen.DrawImage(playerImage, op)
 
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("Coordinates: (%d, %d)", g.currentPos.x, g.currentPos.y))
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("Zone: [%s], Coordinates: (%d, %d)", g.currentZone, g.currentPos.x, g.currentPos.y))
 
-	log.Printf("Coordinates (%d, %d) \n", g.currentPos.x, g.currentPos.y)
+	//log.Printf("Coordinates (%d, %d) \n", g.currentPos.x, g.currentPos.y)
 
 	// Additional check to draw colored sea if player is on the specified coordinate
-	if g.currentPos.x <= 200 && g.currentPos.y <= 100 && seaColored {
-		for i := 0; i < NUM_TILES; i++ {
-			for j := 0; j < NUM_TILES; j++ {
-				if g.tiles[i][j] == TileTypeFire {
-					op := &ebiten.DrawImageOptions{}
-					op.GeoM.Translate(float64(i*TILE_SIZE), float64(j*TILE_SIZE))
-					screen.DrawImage(fireImage, op)
+	if g.currentZone == "island" {
+		if g.currentPos.x <= 200 && g.currentPos.y <= 100 && seaColored {
+			for i := 0; i < NUM_TILES; i++ {
+				for j := 0; j < NUM_TILES; j++ {
+					if g.currentTiles[i][j] == TileTypeFire {
+						op := &ebiten.DrawImageOptions{}
+						op.GeoM.Translate(float64(i*TILE_SIZE), float64(j*TILE_SIZE))
+						screen.DrawImage(fireImage, op)
+					}
 				}
 			}
-		}
 
+		}
 	}
 }
 
@@ -263,8 +301,8 @@ func NewGame() *Game {
 	}
 
 	return &Game{
-		tiles:      tiles,
-		currentPos: NewPosition(),
+		currentTiles: tiles,
+		currentPos:   NewPosition(),
 	}
 }
 
@@ -281,10 +319,10 @@ func main() {
 	game.currentPos.x = playerPosX
 	game.currentPos.y = playerPosY
 
-	loadFireSound()
+	loadAlarmSound()
 
-	// Load tiles from a file
-	err := game.LoadTiles("map.txt")
+	// Load currentTiles from a file
+	err := game.LoadTiles("assets/areas/island.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -303,21 +341,24 @@ func main() {
 
 	// Goroutines to change color of water
 	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				if err := game.Update(); err != nil {
-					log.Fatal(err)
+
+		if game.currentZone == "island" {
+			for {
+				select {
+				case <-ticker.C:
+					if err := game.Update(); err != nil {
+						log.Fatal(err)
+					}
+				case <-waterTicker.C:
+					game.waterImageIndex = (game.waterImageIndex + 1) % len(waterImages)
+				case <-quit:
+					// Handle termination signal
+					fmt.Println("\nReceived termination signal. Exiting...")
+					os.Exit(0)
 				}
-			case <-waterTicker.C:
-				game.waterImageIndex = (game.waterImageIndex + 1) % len(waterImages)
-			case <-quit:
-				// Handle termination signal
-				fmt.Println("\nReceived termination signal. Exiting...")
-				os.Exit(0)
 			}
 		}
-	}()
+	}() // X = 228, Y > 216 && Y < 245
 
 	// Handle Ctrl+C signal to gracefully exit the program
 	quit = make(chan os.Signal, 1)
