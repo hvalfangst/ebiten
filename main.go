@@ -137,15 +137,16 @@ func createBackgroundImage(filePath string) *ebiten.Image {
 	var zoneName = parts[0]
 
 	// Assign
-	var dimensions = strings.Split(strings.Split(parts[1], ".")[0], "x")
+	var dimensions = strings.Split(parts[1], "x")
 	var screenWidth, _ = strconv.Atoi(dimensions[0])
 	var screenHeight, _ = strconv.Atoi(dimensions[1])
 
-	var tileSize, _ = strconv.Atoi(parts[2])
+	var tileSize, _ = strconv.Atoi(strings.Split(parts[2], ".")[0])
 
 	currentGame.currentZone = zoneName
 	currentGame.screenWidth = screenWidth
 	currentGame.screenHeight = screenHeight
+	currentGame.tileSize = tileSize
 
 	fmt.Printf("\nFilepath: %s", filePath)
 	fmt.Printf("\nZone Name: %s\n", zoneName)
@@ -196,6 +197,7 @@ type Game struct {
 	spriteRows        int
 	screenWidth       int
 	screenHeight      int
+	tileSize          int
 }
 
 func (g *Game) Update() error {
