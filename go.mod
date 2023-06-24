@@ -1,4 +1,4 @@
-module hvalfangst/rattle-rpg
+module rattle
 
 go 1.19
 
