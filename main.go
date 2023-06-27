@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"golang.org/x/image/font"
 	"image"
 	_ "image/png"
 	"log"
@@ -14,9 +15,11 @@ import (
 )
 
 type Game struct {
-	currentZone     *zones.Zone
-	currentPos      Position
-	movementHandled bool
+	currentZone          *zones.Zone
+	currentPos           Position
+	movementHandled      bool
+	interactionTriggered bool
+	textBoxTriggered     bool
 }
 
 type Position struct {
@@ -34,6 +37,8 @@ var (
 	playerSprite                  *ebiten.Image
 	spriteImages                  []*ebiten.Image
 	currentSpriteFrameIndexPlayer int
+	ff                            font.Face
+	textBox                       = "Hello, world!"
 )
 
 func init() {
@@ -51,6 +56,8 @@ func InitializeGame() {
 			0,
 			false},
 		false,
+		false,
+		false,
 	}
 	backgroundImage = createBackgroundImage("assets/areas/reindal_960x640_32.png", game)
 	playerSprite = createImage("assets/models/avatars_576x576_12x8.png", game)
@@ -62,23 +69,41 @@ func InitializeGame() {
 func (g *Game) Update() error {
 	g.HandleKeyPress()
 	if g.currentPos.justChanged {
-		if g.currentZone.Name == "reindal" && g.currentPos.x >= 600 && g.currentPos.x < 620 && g.currentPos.y > 380 && g.currentPos.y < 410 {
-
-			g.currentPos.x = 372
-			g.currentPos.y = 416
-			currentSpriteFrameIndexPlayer = 45
-			backgroundImage = createBackgroundImage("assets/areas/koala_960x640_32.png", game)
-		} else if g.currentZone.Name == "koala" && g.currentPos.x == 372 && g.currentPos.y == 448 {
-			backgroundImage = createBackgroundImage("assets/areas/reindal_960x640_32.png", game)
-			g.currentPos.x = 632
-			g.currentPos.y = 400
-			currentSpriteFrameIndexPlayer = 9
-		} else {
+		switch g.currentZone.Name {
+		case "reindal":
+			handleReindal(g)
+		case "koala":
+			handleKoala(g)
+		default:
 			fmt.Printf("Zone: %s, Pos X: %d, Pos Y: %d\n", g.currentZone.Name, g.currentPos.x, g.currentPos.y)
 		}
-
 	}
 	return nil
+}
+
+func handleKoala(g *Game) {
+
+	//if g.interactionTriggered {
+	//	textBox = "Text box spawned!"
+	//	g.textBoxTriggered = true
+	//	g.interactionTriggered = false
+	//}
+
+	if g.currentPos.x == 372 && g.currentPos.y == 448 {
+		backgroundImage = createBackgroundImage("assets/areas/reindal_960x640_32.png", game)
+		g.currentPos.x = 632
+		g.currentPos.y = 400
+		currentSpriteFrameIndexPlayer = 9
+	}
+}
+
+func handleReindal(g *Game) {
+	if g.currentPos.x >= 600 && g.currentPos.x < 620 && g.currentPos.y > 380 && g.currentPos.y < 410 {
+		g.currentPos.x = 372
+		g.currentPos.y = 416
+		currentSpriteFrameIndexPlayer = 45
+		backgroundImage = createBackgroundImage("assets/areas/koala_960x640_32.png", game)
+	}
 }
 
 func (g *Game) HandleKeyPress() {
@@ -135,6 +160,8 @@ func (g *Game) HandleKeyPress() {
 			} else {
 				currentSpriteFrameIndexPlayer = 33
 			}
+		} else if ebiten.IsKeyPressed(ebiten.KeyE) {
+			g.interactionTriggered = true
 		}
 	}
 
@@ -157,6 +184,21 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// Draw the current sprite image
 	screen.DrawImage(spriteImages[currentSpriteFrameIndexPlayer], op)
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("Zone: [%s], Coordinates: (%d, %d), Sprites: %d", g.currentZone.Name, g.currentPos.x, g.currentPos.y, g.currentZone.TotalSprites))
+
+	//if g.textBoxTriggered {
+	//	// Clear the screen
+	//	screen.Fill(color.Black)
+	//
+	//	// Set the text color and position
+	//	textColor := color.White
+	//	textPosX := 400
+	//	textPosY := 400
+	//
+	//	// Draw the text box
+	//	text.Draw(screen, textBox, ff, textPosX, textPosY, textColor)
+	//	g.textBoxTriggered = false
+	//}
+
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -279,6 +321,21 @@ func (p *Position) Increment(x, y int) {
 }
 
 func main() {
+	//// Load the font data
+	//fontData := gobold.TTF
+	//
+	//// Create the font face
+	//ttfont, err := truetype.Parse(fontData)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//
+	//ff = truetype.NewFace(ttfont, &truetype.Options{
+	//	Size:    12,
+	//	DPI:     72,
+	//	Hinting: font.HintingFull,
+	//})
+
 	ebiten.SetWindowSize(game.currentZone.ScreenWidth, game.currentZone.ScreenHeight)
 	ebiten.SetWindowTitle("Rattle RPG")
 
